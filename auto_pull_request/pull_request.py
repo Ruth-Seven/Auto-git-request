@@ -63,7 +63,7 @@ class RepositoryID:
 
     @property
     def ssh_url(self):
-        return "".join(["git@", self.host, ":", self.user, "/", self.repo + ".git"])
+        return "".join(["git@" + self.host +  ":" + self.user, "/", self.repo + ".git"])
 
     def __str__(self):
         return str(self.__dict__)
@@ -172,7 +172,8 @@ class Remote:
 
     def pull(self):
         if not self.exist_repo_branches(self.repo_branch):
-            logger.info(f"Because of missing of {self.repo.repo}/{self.repo_branch}, fetching")
+            logger.info(f"Because of missing of {self.repo.repo}/{self.repo_branch}, skip fetching")
+            return
         self.git.fetch_branch(self.remote_name, self.repo_branch)
         if self.sync == "merge":
             self.merge()
@@ -202,8 +203,8 @@ class Remote:
         try:
             self.git.quickMerge(self.remote_branch, self.local_branch, ours=True if self.quick_commit == "ours" else False)
         except RuntimeError:
-            logger.info()
-            dead_for_resource("overwriting using merge")
+            logger.info("overwriting using merge")
+            dead_for_resource()
 
     
     def push(self, ignore_error=False, retry=3, timeout=45):
@@ -390,8 +391,8 @@ class Auto:
         logger.info("Done~ ^_^")
 
     def sync(self):
-        self.fork_remote.clear_local()
-        self.target_remote.clear_local()
+        # self.fork_remote.clear_local()
+        # self.target_remote.clear_local()
         self.target_remote.pull()
         self.fork_remote.pull()
         self.fork_remote.push(ignore_error=False)
