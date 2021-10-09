@@ -75,11 +75,11 @@ from auto_pull_request import __version__
     "If empty, we will promot in terminal to input corresponding infos.\n"
     "How to get you personal token? Please check this https://docs.github.com/en/authentication"
     "/keeping-your-account-and-data-secure/creating-a-personal-access-token")
-@click.option("--sync-merge/--sync-rebase", default=False, show_default=True,
+@click.option("--sync", type=click.Choice(["merge", "rebase", "force"]), default="rebase", show_default=True,
     help="Choose to the git-command to sync with remote repo. Option `--allow-unrelated-histories` with `git merge` is deafault.")
 @click.option("--quick-commit", type=click.Choice(["false", "ours", "theirs"]), default="false", show_default=True,
-    help="When merges occurs conflicts during sync with remote branches, `--quick_commit` will use `git checkout` can quick using local content or remote content, which is dependent on your choice, as merge results. Of course, skip the process open vim to commit.")
-def main(debug, target_url, target_remote, target_branch, fork_branch, fork_url, fork_remote, title, body, keep_message, labels, comment, skip_editor, token, sync_merge, quick_commit):
+    help="With using `--sync=force`, using merges occurs conflicts during sync with remote branches, `--quick_commit` will use `git checkout` can quick using local content or remote content, which is dependent on your choice, as merge results. Of course, skip the process open vim to commit.")
+def main(debug, target_url, target_remote, target_branch, fork_branch, fork_url, fork_remote, title, body, keep_message, labels, comment, skip_editor, token, sync, quick_commit):
     log_info(debug)
     version_lint()
     Auto(
@@ -96,7 +96,7 @@ def main(debug, target_url, target_remote, target_branch, fork_branch, fork_url,
         labels=labels,
         skip_editor=skip_editor,
         token=token,
-        sync_merge=sync_merge,
+        sync=sync,
         quick_commit=quick_commit,
         ).run()
 

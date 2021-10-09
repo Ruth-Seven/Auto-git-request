@@ -77,14 +77,14 @@ class Remote:
         self.user_branch: user for head branch of pull-request.
     """
 
-    def __init__(self, remote_name:str="", repo_branch:str="", local_branch:str="", repo:RepositoryID=None, git:Git=None, gh_repo:Repository=None, config=True, fork=False, on_local=True,sync_merge=False,quick_commit:str="false"):
+    def __init__(self, remote_name:str="", repo_branch:str="", local_branch:str="", repo:RepositoryID=None, git:Git=None, gh_repo:Repository=None, config=True, fork=False, on_local=True,sync="rebase",quick_commit:str="false"):
         self._gh_repo = None 
         self._repo = None
         self.user = ""
         self.config = config
         self.fork =fork
         self.on_local=on_local
-        self.sync_merge=sync_merge
+        self.sync=""
         self.quick_commit=quick_commit
         # TODO0 set the value int git.config
         self.remote_name = remote_name
@@ -174,46 +174,38 @@ class Remote:
         if not self.exist_repo_branches(self.repo_branch):
             logger.info(f"Because of missing of {self.repo.repo}/{self.repo_branch}, fetching")
         self.git.fetch_branch(self.remote_name, self.repo_branch)
-        if self.sync_merge:
+        if self.sync == "merge":
             self.merge()
-            action = "Merge"
-        else:
+        elif self.sync == "rebase":
             self.rebase()
-            action = "Rebase"
-        logger.success(f"{action} success from {self.remote_branch} to {self.local_branch}")
+        else:
+            self.overwrite()
+        logger.success(f"{self.sync} success from {self.remote_branch} to {self.local_branch}")
 
     def rebase(self):
         linter = ["rebasing", "git add .; git rebase -- continue", "git rebase --abort"]
         try:
             self.git.rebase(self.remote_branch, self.local_branch)
         except RuntimeError:
-            logger.error(
-                f"During the {linter[0]} {self.local_branch} from {self.remote_branch}, "
-                "it is likely that your change has a merge conflict. "
-                f"You may resolve it by `{linter[1]}`"
-                "Once done run `git pull-request' again. "
-                f"If you want to abort conflict resolution, run `{linter[2]}`."
-            )
+            self.logger_merge(linter)
             dead_for_resource()
 
     def merge(self):
         linter = ["merging", "git add .; git commit", "git merge --abort"]
         try:
-            if self.quick_commit == "false":
-                self.git.merge(self.remote_branch, self.local_branch)
-            else: 
-                self.git.quickMerge(self.remote_branch, self.local_branch, ours=True if self.quick_commit == "ours" else False)
-                
+            self.git.merge(self.remote_branch, self.local_branch)       
         except RuntimeError:
-            logger.error(
-                f"During the {linter[0]} {self.local_branch} from {self.remote_branch}, "
-                "it is likely that your change has a merge conflict. "
-                f"You may resolve it by `{linter[1]}`"
-                "Once done run `git pull-request' again. "
-                f"If you want to abort conflict resolution, run `{linter[2]}`."
-            )
+            self.logger_merge(linter)
             dead_for_resource()
+    
+    def overwrite(self):
+        try:
+            self.git.quickMerge(self.remote_branch, self.local_branch, ours=True if self.quick_commit == "ours" else False)
+        except RuntimeError:
+            logger.info()
+            dead_for_resource("overwriting using merge")
 
+    
     def push(self, ignore_error=False, retry=3, timeout=45):
         self.git.push(self.remote_name, self.local_branch, self.repo_branch, ignore_error=ignore_error, retry=retry, timeout=timeout)
         logger.success(f"Push success from {self.local_branch} to {self.repo_branch}")
@@ -221,7 +213,15 @@ class Remote:
     def __str__(self):
         return " ".join([item + ": \'" + str(self.__dict__[item]) + "\'"for item in self.__dict__ 
             if item not in ["git", "copy_option_list"]])
-    
+
+    def logger_merge(self, linter):
+        logger.error(
+                f"During the {linter[0]} {self.local_branch} from {self.remote_branch}, "
+                "it is likely that your change has a merge conflict. "
+                f"You may resolve it by `{linter[1]}`"
+                "Once done run `git pull-request' again. "
+                f"If you want to abort conflict resolution, run `{linter[2]}`."
+            )
 
 class Auto:
     """ 
@@ -245,7 +245,7 @@ class Auto:
         labels=None,
         skip_editor="",
         token="",
-        sync_merge=False,
+        sync="rebase",
         quick_commit="false"):
         self.git = Git()
         self.content = PRContent(title, body)
@@ -264,7 +264,7 @@ class Auto:
             repo_branch = target_branch,
             fork=False,
             on_local=target_local,
-            sync_merge=sync_merge,
+            sync=sync,
             quick_commit=quick_commit,
         )
         self.fork_remote = Remote(
@@ -274,7 +274,7 @@ class Auto:
             remote_name = fork_remote,
             fork=True,
             on_local=fork_local,
-            sync_merge=sync_merge,
+            sync=sync,
             quick_commit=quick_commit,
         )
         logger.info(f"accepted option parameters. \ntarget_remote: {self.target_remote}\nfork_remote: {self.fork_remote}\n")
