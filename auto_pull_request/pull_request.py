@@ -162,8 +162,10 @@ class Remote:
         pass
 
     def exist_repo_branches(self, repo_branch:str):
-        self.branches = self.gh_repo.get_branches()
-        return repo_branch in self.branches
+        self.branches = [obj.name for obj in self.gh_repo.get_branches()]
+        flag = repo_branch in self.branches
+        logger.info(f"{self.repo_branch}" + ("in" if flag else " not in ") +f"Remote repo branch: {self.branches}")
+        return flag
 
     def clear_local(self):
         if not self.git.clear_status(ignore_remote=not self.on_local):
@@ -172,7 +174,7 @@ class Remote:
 
     def pull(self):
         if not self.exist_repo_branches(self.repo_branch):
-            logger.info(f"Because of missing of {self.repo.repo}/{self.repo_branch}, skip fetching")
+            logger.info(f"Because of missing of {self.repo.repo}/{self.repo_branch}. SKIP FETCH and just to push.")
             return
         self.git.fetch_branch(self.remote_name, self.repo_branch)
         if self.sync == "merge":
